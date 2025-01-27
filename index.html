@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spyfall</title>
+    <style>
+        :root {
+            --primary-color: #00ff00;
+            --background-color: #121212;
+            --accent-color: #1a1a1a;
+            --text-color: #e0e0e0;
+        }
+
+        body {
+            background-color: var(--background-color);
+            color: var(--text-color);
+            text-align: center;
+            padding: 20px;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        .screen {
+            display: none;
+            border: 2px solid var(--primary-color);
+            border-radius: 10px;
+            padding: 20px;
+            max-width: 600px;
+            margin: 20px auto;
+            background: var(--accent-color);
+        }
+
+        .visible { display: block; }
+
+        button {
+            background: linear-gradient(145deg, #121212, #1a1a1a);
+            color: var(--primary-color);
+            border: 2px solid var(--primary-color);
+            padding: 12px 25px;
+            margin: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+
+        button:hover {
+            background: var(--primary-color);
+            color: var(--background-color);
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+        }
+
+        .player-container {
+            display: flex;
+            justify-content: center;
+            margin: 10px;
+            gap: 10px;
+        }
+
+        .player-input {
+            padding: 8px 12px;
+            width: 200px;
+            background: var(--accent-color);
+            border: 1px solid var(--primary-color);
+            border-radius: 5px;
+            color: var(--text-color);
+        }
+
+        .remove-btn {
+            padding: 5px 12px;
+            background: #ff4444;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+        }
+
+        .remove-btn:hover { background: #ff0000; }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .role-config {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .role-config label {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            background: #1a1a1a;
+            border-radius: 5px;
+        }
+
+        .counter {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .role-input {
+            width: 60px;
+            padding: 5px;
+            text-align: center;
+            background: var(--accent-color);
+            border: 1px solid var(--primary-color);
+            color: var(--text-color);
+        }
+
+        h1, h2 { color: var(--primary-color); }
+
+        #overlayContent {
+            background: var(--accent-color);
+            padding: 30px;
+            border-radius: 10px;
+            border: 2px solid var(--primary-color);
+            max-width: 500px;
+            text-align: left;
+        }
+
+        .glow-text {
+            animation: glow 2s infinite;
+        }
+
+        @keyframes glow {
+            0%, 100% { text-shadow: 0 0 5px var(--primary-color); }
+            50% { text-shadow: 0 0 20px var(--primary-color); }
+        }
+    </style>
+</head>
+<body>
+    <div id="setup" class="screen visible">
+        <h1 class="glow-text">🕵️ Spyfall</h1>
+        <div id="playerConfig">
+            <div class="role-config">
+                <label>
+                    <span>Cəsus:</span>
+                    <div class="counter">
+                        <button class="count-btn minus">-</button>
+                        <input type="number" id="spyCount" class="role-input" min="1" value="1">
+                        <button class="count-btn plus">+</button>
+                    </div>
+                </label>
+                <label>
+                    <span>Joker:</span>
+                    <div class="counter">
+                        <button class="count-btn minus">-</button>
+                        <input type="number" id="jokerCount" class="role-input" min="0" value="0">
+                        <button class="count-btn plus">+</button>
+                    </div>
+                </label>
+                <label>
+                    <span>Xəfiyyə:</span>
+                    <div class="counter">
+                        <button class="count-btn minus">-</button>
+                        <input type="number" id="detectiveCount" class="role-input" min="0" value="0">
+                        <button class="count-btn plus">+</button>
+                    </div>
+                </label>
+            </div>
+            <div id="nameInputs">
+                <!-- players -->
+            </div>
+            <button onclick="addPlayer()">Oyunçu Əlavə Et</button>
+        </div>
+        <button onclick="startGame()">Oyunu Başlat</button>
+    </div>
+
+    <div id="roleScreen" class="screen">
+        <h2><span id="currentPlayerName" class="glow-text">Oyunçu</span></h2>
+        <button onclick="showRole()">Rolu göstər</button>
+        <button onclick="nextPlayer()" style="display:none;" id="nextBtn">Növbəti Oyunçu</button>
+    </div>
+
+    <div id="gameScreen" class="screen">
+        <h2 class="glow-text">Oyun Davam Edir!</h2>
+        <button onclick="accuse()">Oyunçunu İtham Et</button>
+        <button onclick="guessLocation()">Məkanı Təxmin Et (Casus)</button>
+    </div>
+
+    <div id="roleOverlay" class="overlay">
+        <div id="overlayContent"></div>
+        <button onclick="hideOverlay()">Geri</button>
+    </div>
+
+    <script>
+        const locations = {
+            "Bank": ["Kassir", "Təhlükəsizlik", "Müştəri", "Menecer", "Təmizlikçi"],
+            "Xəstəxana": ["Həkim", "Tibb bacısı", "Xəstə", "Ziyarətçi", "Təcili yardım işçisi"],
+            "Kosmik Stansiya": ["Komandir", "Mühəndis", "Alim", "Həkim", "Yad planetli Səfir"],
+            "Film Studiyası": ["Rejissor", "Aktyor", "Kamera operatoru", "Dublyor", "Geyim Dizayneri"],
+            "Quldur Gəmisi": ["Kapitan", "Birinci Köməkçi", "Naviqator", "Aşpaz", "Məhbus"],
+            "Laboratoriya": ["Baş Alim", "Laborant", "Təhlükəsizlik rəisi", "Təmizlikçi", "Stajor"],
+            "Gece Klubu": ["DJ", "Təhlükəsizlik", "Barmen", "Rəqqasə", "VIP Qonaq"],
+            "Qütb Stansiyası": ["Ekspedisiya rəhbəri", "Meteoroloq", "Həkim", "Aşpaz", "Pilot"],
+            "Sirk Çadırı": ["Şoumen", "Akrobat", "Kloun", "Heyvan Məşqçisi", "Bilet Satıcısı"],
+            "Sualtı gəmi": ["Kapitan", "Sonar Texniki", "Mühəndis", "Aşpaz", "Dəniz Bioloqu"],
+            "İncəsənət Qalereyası": ["Kurator", "Rəssam", "Təhlükəsizlik", "İncəsənət Tənqidçisi", "Ziyarətçi"],
+            "Musiqi Festivalı": ["Vokalist", "Gitaraçı", "Texnik", "Təhlükəsizlik", "Yemək Satıcısı"],
+            "Wild West Bar": ["Şerif", "Barmen", "Qumar Oyunçusu", "Pianoçu", "Qanunqəza"],
+            "Hava Limanı": ["Pilot", "Stuardessa", "Təhlükəsizlik", "Sərnişin", "Təmizlikçi"],
+            "Hərbi Baza": ["General", "Snayper", "Həkim", "Mühəndis", "Əsgər"],
+            "Üzüm Şərab Bağı": ["Şərabçı", "Ekskursiya Rəhbəri", "Yığımçı", "Dadıcı"],
+            "Kino Teatr": ["Proyeksionist", "Büfetçi", "Təmizlikçi", "İzləyici"],
+            "Zoopark": ["Heyvan Baxıcısı", "Veterinar", "Ekskursiya Rəhbəri", "Ziyarətçi", "Heyvan Məşqçisi"],
+            "Kilsə": ["Keşiş", "Xor müğənnisi", "Təmizlikçi", "Ekskursiya Rəhbəri", "Dindar"],
+            "Maşın Yarış Meydanı": ["Sürücü", "Mexanik", "Şərhçi", "Tamaşaçı", "Həkim"],
+            "Xizək Kurortu": ["Təlimatçı", "Lift Operatoru", "Xilasedici", "Turist", "Barmen"],
+            "UFO Qəza Yeri": ["Yadplanetli", "Alim", "Hərbi Polis", "Konspirasiya Nəzəriyyəçisi", "Müxbir"],
+            "Qədim Məbəd": ["Kahin", "Səfir", "Təhlükəsizlik", "Arxeoloq", "Kəndli"],
+            "Sualtı Şəhər": ["Dəniz Biologu", "Sualtı Mühəndisi", "Dalğıç", "Şəhər Rəhbəri", "Səyahətçi"],
+            "Gizli Bunker": ["Hərbi Rəhbər", "Şifrəçi", "Təchizatçı", "Mühəndis", "Casus"],
+            "Qız Qalası": ["Kral", "Cəngavər", "Zindancı", "Aşpaz", "Saray Cəlladı"],
+            "Kosmos Koloniyası": ["Koloniya Rəhbəri", "Təmirçi", "Botanik", "Astronavt", "Mədənçi"],
+            "Mağara": ["Səyyah", "Dağçı", "Paleontoloq", "Rehber", "Xəzinə Axtaran"],
+            "Robot Zavodu": ["Baş Mühəndis", "Robot Texniki", "Keyfiyyət Nəzarətçisi", "Təhlükəsizlik", "Səyyar Satıcı"],
+            "Şirniyyat Fabriki": ["Şirniyyat Ustası", "Qablaşdırıcı", "Dadıcı", "Anbarçı", "Satıcı"],
+            "Vampir Qəsri": ["Vampir", "Vampir Ovçusu", "Xidmətçi", "Tarixçi", "Qonaq"],
+            "Dinozavr Parkı": ["Paleontoloq", "Tur Rehberi", "Veterinar", "Təhlükəsizlik", "Fotoreporter"],
+            "Məktəb": ["Direktor", "Müəllim", "Tələbə", "Baxıcı", "Psixoloq"],
+            "Laboratoriya": ["Labarant", "Təcrübə Köməkçisi", "Kitabxanaçı", "Gözətçi"],
+            "Səhra": ["Bədəvi", "Su Mühəndisi", "Ticarətçi", "Ziyarətçi", "Xəzinə Ovçusu"],
+            "Muzey": ["Kurator", "Arxeoloq", "Təhlükəsizlik", "Ziyarətçi", "Müəllim"],
+            "Şahmat Turniri": ["Qrossmeyster", "Hakim", "Könüllü", "Jurnalist", "Sponsor"],
+            "Komputer Zalı": ["Hacker", "E-İdman Oyunçusu", "VR Tərtibatçı", "Barista", "Müştəri"],
+            "Dinozavr Muzeyi": ["Eksponat Bərpaçı", "Qidalandırıcı", "Tur Rehberi", "Təhlükəsizlik", "Paleontoloq"],
+            "Neft Daşları": ["Neftçi", "Dəniz Mühəndisi", "Helikopter Pilotu", "Aşpaz", "Təhlükəsizlik Mütəxəssisi"],
+            "Kitabxana": ["Kitabxanaçı", "Alim", "Mühafizəçi", "Kəşfiyyatçı", "Qadağan Kitab Saxlayan"],
+            "Robot Sərgisi": ["AI Mütəxəssisi", "Robot Dizayneri", "Təlimçi", "Jurnalist", "Uşaq Ziyarətçi"],
+            "Kənd Təsərrüfatı Yarmarkası": ["Fermer", "Traktor Sürücüsü", "Meyvə Eksperti", "Alverçi", "Kəndli Rəssam"],
+            "Zombi Qaçqın Düşərgəsi": ["Həkim", "Mühafizəçi", "Aşpaz", "Kəşfiyyatçı", "Virus Tədqiqatçı"],
+            "Uçan Balon": ["Pilot", "Meteoroloq", "Turist", "Fotoreporter", "Təmirçi"],        };
+
+        let currentLocation, players = [], currentPlayerIndex = 0, spies = [];
+
+        function getCurrentRolesSum() {
+            return ['spyCount', 'jokerCount', 'detectiveCount'] // Use string IDs
+                .map(id => parseInt(document.getElementById(id).value) || 0)
+                .reduce((a, b) => a + b, 0);
+        }
+
+        function updatePlusButtonsState() {
+            const maxSum = parseInt(document.querySelectorAll('.player-container').length) - 1;
+            document.querySelectorAll('.count-btn.plus').forEach(btn => {
+                const input = btn.parentElement.querySelector('.role-input');
+                btn.disabled = getCurrentRolesSum() >= maxSum;
+            });
+        }
+
+        // Player management
+        function addPlayer() {
+            const container = document.createElement('div');
+            container.className = 'player-container';
+            container.innerHTML = `
+                <input class="player-input" placeholder="Oyunçu ${document.querySelectorAll('.player-container').length + 1}">
+                <button class="remove-btn" onclick="removePlayer(this)">×</button>
+            `;
+            document.getElementById('nameInputs').appendChild(container);
+            updateRemoveButtons();
+            updatePlusButtonsState();
+        }
+
+        function removePlayer(btn) {
+            if (document.querySelectorAll('.player-container').length <= 3) return;
+            btn.parentElement.remove();
+            updatePlaceholders();
+            updateRemoveButtons();
+            updatePlusButtonsState();
+        }
+
+        function updateRemoveButtons() {
+            document.querySelectorAll('.remove-btn').forEach(btn => {
+                btn.disabled = document.querySelectorAll('.player-container').length <= 3;
+            });
+        }
+
+        // Game logic
+        function startGame() {
+            const totalPlayers = document.querySelectorAll('.player-container').length;
+            const roleCounts = ['spyCount', 'jokerCount', 'detectiveCount']
+                .map(id => parseInt(document.getElementById(id).value) || 0);
+            
+            if (roleCounts.reduce((a, b) => a + b, 0) >= totalPlayers) {
+                alert("Çoxlu xüsusi rollar!");
+                return;
+            }
+
+            players = Array.from(document.querySelectorAll('.player-input'))
+                .map((input, i) => ({
+                    name: input.value.trim() || `Oyunçu ${i + 1}`,
+                    role: "",
+                    isSpy: false,
+                    knowsLocation: true,
+                    knowsSpies: false
+                }));
+
+            currentLocation = Object.keys(locations)[Math.floor(Math.random() * Object.keys(locations).length)];
+            spies = [];
+            
+            const roles = shuffleArray([
+                ...Array(roleCounts[0]).fill('Cəsus'),
+                ...Array(roleCounts[1]).fill('Joker'),
+                ...Array(roleCounts[2]).fill('Xəfiyyə'),
+                ...Array(totalPlayers - roleCounts.reduce((a, b) => a + b)).fill('Vətəndaş')
+            ]);
+
+            players = shuffleArray(players).map((p, i) => {
+                const role = roles[i];
+                if (role === 'Casus') spies.push(p.name);
+                return {
+                    ...p,
+                    role,
+                    isSpy: role === 'Casus',
+                    knowsLocation: role !== 'Casus',
+                    knowsSpies: role === 'Coker'
+                };
+            });
+
+            showScreen('setup', false);
+            showScreen('roleScreen', true);
+            updateCurrentPlayerDisplay();
+        }
+
+        function showRole() {
+            const player = players[currentPlayerIndex];
+            const content = `Rol: <strong><span style="color: ${
+                player.role === "Cəsus" ? "red" : 
+                player.role === "Joker" ? "orange" : 
+                player.role === "Xəfiyyə" ? "cyan" : "green"}">${player.role}</span></strong><br>
+                
+                ${player.knowsLocation ? `Məkan: <strong>${currentLocation}</strong><br>` : ''}
+                ${player.knowsSpies ? `Casuslar: <strong><span style="color: red">${spies.join(', ')}</span></strong>` : ''}`;
+            
+            document.getElementById('overlayContent').innerHTML = content;
+            document.getElementById('roleOverlay').style.display = 'flex';
+            document.getElementById('nextBtn').style.display = 'block';
+        }
+
+        function nextPlayer() {
+            if (++currentPlayerIndex >= players.length) startGamePhase();
+            else updateCurrentPlayerDisplay();
+            document.getElementById('nextBtn').style.display = 'none';
+        }
+
+        function startGamePhase() {
+            showScreen('roleScreen', false);
+            showScreen('gameScreen', true);
+        }
+
+        // Helper functions
+        function shuffleArray(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        function updateCurrentPlayerDisplay() {
+            document.getElementById('currentPlayerName').textContent = players[currentPlayerIndex].name;
+        }
+
+        function showScreen(id, visible) {
+            document.getElementById(id).style.display = visible ? 'block' : 'none';
+        }
+        function hideOverlay() {
+            document.getElementById('roleOverlay').style.display = 'none';
+        }
+        // Event listeners
+        document.addEventListener('click', e => {
+            if (e.target.classList.contains('count-btn')) {
+                const input = e.target.parentElement.querySelector('.role-input');
+                input.value = Math.max(input.min, 
+                    parseInt(input.value) + (e.target.classList.contains('plus') ? 1 : -1)
+                );
+                updatePlusButtonsState();
+            }
+        });
+
+        // Initialization
+        ["Mahir", "Heydər", "Tural", "Aydan", "Mövlud", "Nicat", 
+          "Şahmur", "Elbəy", "Cəmaləddin", "Vüsal", "Ruhulla", "Əyyub"].forEach((name, i) => {
+            const container = document.createElement('div');
+            container.className = 'player-container';
+            container.innerHTML = `
+                <input class="player-input" placeholder="Oyunçu ${document.querySelectorAll('.player-container').length + 1}">
+                <button class="remove-btn" onclick="removePlayer(this)">×</button>
+            `;
+            document.getElementById('nameInputs').appendChild(container);
+            document.querySelectorAll('.player-input')[i].value = name;
+        });
+        updateRemoveButtons();
+        updatePlusButtonsState();
+    </script>
+</body>
+</html>
