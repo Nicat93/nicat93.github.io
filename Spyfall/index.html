@@ -446,7 +446,7 @@
             // After setting currentLocation
             const locationsList = document.getElementById('allLocations');
             locationsList.innerHTML = locations.map(loc => 
-                `<li class="${loc === currentLocation ? 'current' : ''}">${loc}</li>`
+                `<li>${loc}</li>`
             ).join('');
             spies = [];
             
