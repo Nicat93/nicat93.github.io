@@ -211,6 +211,41 @@
             margin-left: 8px;
             background: var(--primary-color);
         }
+
+        #locationsList {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        right: 20px;
+        background: var(--accent-color);
+        padding: 15px;
+        border-radius: 10px;
+        border: 1px solid var(--primary-color);
+        opacity: 0.8;
+        max-height: 200px;
+        overflow-y: auto;
+        }
+
+        #locationsList h3 {
+            color: var(--primary-color);
+            margin-top: 0;
+        }
+
+        #allLocations {
+            columns: 3;
+            padding: 0;
+            list-style: none;
+        }
+
+        #allLocations li {
+            padding: 3px 0;
+        }
+
+        #allLocations li.current {
+            color: var(--primary-color);
+            font-weight: bold;
+            text-shadow: 0 0 5px rgba(0, 255, 0, 0.3);
+        }
     </style>
 </head>
 <body>
@@ -260,6 +295,16 @@
     <div id="gameScreen" class="screen">
         <h2 class="glow-text">Oyun Davam Edir!</h2>
         <div id="playerList" class="role-config"></div>
+        <div id="gameScreen" class="screen">
+            <h2 class="glow-text">Oyun Davam Edir!</h2>
+            <div id="playerList" class="role-config"></div>
+            
+            <!-- Add locations list -->
+            <div id="locationsList">
+                <h3>Bütün Məkanlar:</h3>
+                <ul id="allLocations"></ul>
+            </div>
+        </div>
     </div>
     
     <div id="playerPasswordOverlay" class="overlay">
@@ -403,6 +448,11 @@
                 }));
 
             currentLocation = locations[Math.floor(Math.random() * locations.length)];
+            // After setting currentLocation
+            const locationsList = document.getElementById('allLocations');
+            locationsList.innerHTML = locations.map(loc => 
+                `<li class="${loc === currentLocation ? 'current' : ''}">${loc}</li>`
+            ).join('');
             spies = [];
             
             const roles = shuffleArray([
