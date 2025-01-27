@@ -552,6 +552,11 @@
         
                     // Restore game state
                     currentLocation = gameState.currentLocation;
+                    // After setting currentLocation
+                    const locationsList = document.getElementById('allLocations');
+                    locationsList.innerHTML = locations.map(loc => 
+                        `<li>${loc}</li>`
+                    ).join('');
                     players = gameState.players;
                     
                     // Reconstruct spies array from player roles
