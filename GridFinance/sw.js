@@ -10,7 +10,8 @@ const ASSETS_TO_CACHE = [
   'https://cdn.tailwindcss.com',
   'https://aistudiocdn.com/react@^19.2.0',
   'https://aistudiocdn.com/react@^19.2.0/',
-  'https://aistudiocdn.com/react-dom@^19.2.0/'
+  'https://aistudiocdn.com/react-dom@^19.2.0/',
+  'https://aistudiocdn.com/@google/genai@^1.30.0'
 ];
 
 // Install Event: Cache assets
