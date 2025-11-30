@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spyfall</title>
+    <style>
+        :root {
+            --primary-color: #00ff00;
+            --background-color: #121212;
+            --accent-color: #1a1a1a;
+            --text-color: #e0e0e0;
+        }
+
+        body {
+            background-color: var(--background-color);
+            color: var(--text-color);
+            text-align: center;
+            padding: 20px;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        .screen {
+            display: none; /* Base state */
+        }
+        
+        .screen.visible {
+            display: block; /* Override for visible screens */
+        }
+
+        .visible { display: block; }
+
+        button {
+            background: linear-gradient(145deg, #121212, #1a1a1a);
+            color: var(--primary-color);
+            border: 2px solid var(--primary-color);
+            padding: 12px 25px;
+            margin: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+
+        button:hover {
+            background: var(--primary-color);
+            color: var(--background-color);
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+        }
+
+        .player-container {
+            display: flex;
+            justify-content: center;
+            margin: 10px;
+            gap: 10px;
+        }
+
+        #nameInputs .player-input {
+            padding: 8px 12px;
+            width: 200px;
+            background: var(--accent-color);
+            border: 1px solid var(--primary-color);
+            border-radius: 5px;
+            color: var(--text-color);
+        }
+        
+        .password-input {
+            padding: 8px 12px;
+            width: 200px;
+            background: var(--accent-color);
+            border: 1px solid var(--primary-color);
+            border-radius: 5px;
+            color: var(--text-color);
+        }
+
+        .remove-btn {
+            padding: 5px 12px;
+            background: #ff4444;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+        }
+
+        .remove-btn:hover { background: #ff0000; }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .role-config {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .role-config label {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            background: #1a1a1a;
+            border-radius: 5px;
+        }
+
+        .counter {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .role-input {
+            width: 60px;
+            padding: 5px;
+            text-align: center;
+            background: var(--accent-color);
+            border: 1px solid var(--primary-color);
+            color: var(--text-color);
+        }
+
+        h1, h2 { color: var(--primary-color); }
+
+        #overlayContent {
+            background: var(--accent-color);
+            padding: 30px;
+            border-radius: 10px;
+            border: 2px solid var(--primary-color);
+            max-width: 500px;
+            text-align: left;
+        }
+
+        .glow-text {
+            animation: glow 2s infinite;
+        }
+
+        @keyframes glow {
+            0%, 100% { text-shadow: 0 0 5px var(--primary-color); }
+            50% { text-shadow: 0 0 20px var(--primary-color); }
+        }
+        
+        .view-count {
+            margin-left: 8px;
+            font-size: 0.8em;
+            background: rgba(0, 255, 0, 0.2);
+            padding: 2px 6px;
+            border-radius: 10px;
+            border: 1px solid var(--primary-color);
+        }
+        
+        #groupManagement {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+    
+        #savedGroups {
+            background: var(--accent-color);
+            color: var(--text-color);
+            border: 1px solid var(--primary-color);
+            padding: 5px;
+            min-width: 150px;
+        }
+        
+        .modal-content {
+            background: var(--accent-color);
+            padding: 30px;
+            border-radius: 10px;
+            border: 2px solid var(--primary-color);
+            text-align: center;
+            animation: modalSlide 0.3s ease-out;
+        }
+    
+        @keyframes modalSlide {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    
+        .modal-buttons {
+            margin-top: 20px;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+    
+        .cancel-btn {
+            background: #ff4444 !important;
+            border-color: #ff4444 !important;
+        }
+    
+        .cancel-btn:hover {
+            background: #ff0000 !important;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.3) !important;
+        }
+        
+        .password-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-left: 8px;
+            background: var(--primary-color);
+        }
+
+        #locationsList {
+        bottom: 20px;
+        left: 20px;
+        right: 20px;
+        background: var(--accent-color);
+        padding: 15px;
+        border-radius: 10px;
+        border: 1px solid var(--primary-color);
+        opacity: 0.8;
+        max-height: 200px;
+        overflow-y: auto;
+        }
+
+        #locationsList h3 {
+            color: var(--primary-color);
+            margin-top: 0;
+        }
+
+        #allLocations {
+            columns: 3;
+            padding: 0;
+            list-style: none;
+        }
+
+        #allLocations li {
+            padding: 3px 0;
+            border: 1px solid var(--primary-color);
+        }
+
+        #allLocations li.current {
+            color: var(--primary-color);
+            font-weight: bold;
+            text-shadow: 0 0 5px rgba(0, 255, 0, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div id="setup" class="screen visible">
+        <h1 class="glow-text">🕵️ Spyfall</h1>
+        <div id="playerConfig">
+            <div class="role-config">
+                <label>
+                    <span>Cəsus:</span>
+                    <div class="counter">
+                        <button class="count-btn minus">-</button>
+                        <input type="number" id="spyCount" class="role-input" min="1" value="1">
+                        <button class="count-btn plus">+</button>
+                    </div>
+                </label>
+                <label>
+                    <span>Joker:</span>
+                    <div class="counter">
+                        <button class="count-btn minus">-</button>
+                        <input type="number" id="jokerCount" class="role-input" min="0" value="0">
+                        <button class="count-btn plus">+</button>
+                    </div>
+                </label>
+                <label>
+                    <span>Xəfiyyə:</span>
+                    <div class="counter">
+                        <button class="count-btn minus">-</button>
+                        <input type="number" id="detectiveCount" class="role-input" min="0" value="0">
+                        <button class="count-btn plus">+</button>
+                    </div>
+                </label>
+            </div>
+            <div id="groupManagement">
+                <select id="savedGroups"></select>
+                <button onclick="loadPlayerGroup()">Qrupu Yüklə</button>
+                <button onclick="savePlayerGroup()">Qrupu Saxla</button>
+                <button onclick="deletePlayerGroup()">Qrupu Sil</button>
+            </div>
+            <div id="nameInputs">
+                <!-- players -->
+            </div>
+            <button onclick="addPlayer()">Oyunçu Əlavə Et</button>
+        </div>
+        <button onclick="startGame()">Oyunu Başlat</button>
+    </div>
+
+    <div id="gameScreen" class="screen">
+        <h2 class="glow-text">Oyun Davam Edir!</h2>
+        <div id="playerList" class="role-config"></div>
+            <!-- Add locations list -->
+            <div id="locationsList">
+                <h3>Bütün Məkanlar:</h3>
+                <ul id="allLocations"></ul>
+            </div>
+    </div>
+    
+    <div id="playerPasswordOverlay" class="overlay">
+        <div class="modal-content">
+            <h3 id="playerPasswordPrompt"></h3>
+            <input type="password" id="playerPasswordInput" class="password-input" 
+                   placeholder="Şifrə" style="width:100%;margin:10px 0">
+            <div class="modal-buttons">
+                <button onclick="handlePlayerPassword(false)" class="cancel-btn">Ləğv et</button>
+                <button onclick="handlePlayerPassword(true)">Daxil ol</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="confirmOverlay" class="overlay">
+        <div id="confirmContent" class="modal-content">
+            <h3 id="confirmQuestion"></h3>
+            <div class="modal-buttons">
+                <button onclick="confirmViewRole(true)">Bəli</button>
+                <button onclick="confirmViewRole(false)" class="cancel-btn">Xeyir</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="roleOverlay" class="overlay">
+        <div id="overlayContent"></div>
+        <button onclick="hideOverlay()">Geri</button>
+    </div>
+
+    <script>
+        const locations = [
+            "Kosmik Stansiya",
+            "Film Studiyası",
+            "Quldur Gəmisi",
+            "Laboratoriya",
+            "Qütb Stansiyası",
+            "Sirk Çadırı",
+            "Sualtı gəmi",
+            "Wild West Saloon (Kavboy Barı)",
+            "Bostan",
+            "Kino Teatr",
+            "Zoopark",
+            "Formula1 Yarış Meydanı",
+            "Xizək Kurortu",
+            "UFO Qəza Yeri",
+            "Sualtı Şəhər",
+            "Bunker",
+            "Marsda Koloniya",
+            "Mağara",
+            "Robot Zavodu",
+            "Şirniyyat Fabriki",
+            "Vampir Qəsri",
+            "Jurassic Parkı",
+            "Səhra",
+            "Neft Daşları",
+            "Kənd Təsərrüfatı Yarmarkası",
+            "Zombilərin Yaşadığı Qaçqın Düşərgəsi (Refugee Camp for Zombies to live in)",
+            "Uçan Balon",
+            "Maşın Bazarı",
+            "Kağızdan Şəhər",
+            "Post-Apocalyptic alış-veriş mərkəzi",
+            "Kompyuterin zibil qutusu folderi",
+            "Troya atının içi",
+            "Unudulmuş Əşyalar Bürosu",
+            "Qara Dəlik",
+            "Çernobıl Nüvə Stansiyası (Partlayışdan sonra)",
+            "Nicatın Saçı",
+            "Random Location",
+            "Mövludun Mədəsi",
+            ];
+
+        let currentLocation, players = [], spies = [];
+        let pendingPlayerIndex = null;
+        let viewingPlayerIndex = null;
+        
+        function getCurrentRolesSum() {
+            return ['spyCount', 'jokerCount', 'detectiveCount'] // Use string IDs
+                .map(id => parseInt(document.getElementById(id).value) || 0)
+                .reduce((a, b) => a + b, 0);
+        }
+
+        function updatePlusButtonsState() {
+            const maxSum = parseInt(document.querySelectorAll('.player-container').length) - 1;
+            document.querySelectorAll('.count-btn.plus').forEach(btn => {
+                const input = btn.parentElement.querySelector('.role-input');
+                btn.disabled = getCurrentRolesSum() >= maxSum;
+            });
+        }
+        
+        // Player management
+        function addPlayer() {
+            const container = document.createElement('div');
+            container.className = 'player-container';
+            container.innerHTML = `
+                <input class="player-input" placeholder="Oyunçu ${document.querySelectorAll('.player-container').length + 1}">
+                <button class="remove-btn" onclick="removePlayer(this)">×</button>
+            `;
+            document.getElementById('nameInputs').appendChild(container);
+            updateRemoveButtons();
+            updatePlusButtonsState();
+        }
+
+        function removePlayer(btn) {
+            if (document.querySelectorAll('.player-container').length <= 3) return;
+            btn.parentElement.remove();
+            updatePlaceholders();
+            updateRemoveButtons();
+            updatePlusButtonsState();
+        }
+
+        function updateRemoveButtons() {
+            document.querySelectorAll('.remove-btn').forEach(btn => {
+                btn.disabled = document.querySelectorAll('.player-container').length <= 3;
+            });
+        }
+
+        // Game logic
+        function startGame() {
+            const totalPlayers = document.querySelectorAll('#nameInputs .player-input').length;
+            const roleCounts = ['spyCount', 'jokerCount', 'detectiveCount']
+                .map(id => parseInt(document.getElementById(id).value) || 0);
+            
+            if (roleCounts.reduce((a, b) => a + b, 0) >= totalPlayers) {
+                alert("Çoxlu xüsusi rollar!");
+                return;
+            }
+
+            players = Array.from(document.querySelectorAll('#nameInputs .player-input'))
+                .map((input, i) => ({
+                    name: input.value.trim() || `Oyunçu ${i + 1}`,
+                    role: "",
+                    knowsLocation: true,
+                    knowsSpies: false
+                }));
+
+            currentLocation = locations[Math.floor(Math.random() * locations.length)];
+            // After setting currentLocation
+            const locationsList = document.getElementById('allLocations');
+            locationsList.innerHTML = locations.map(loc => 
+                `<li>${loc}</li>`
+            ).join('');
+            spies = [];
+            
+            const roles = shuffleArray([
+                ...Array(roleCounts[0]).fill('Cəsus'),
+                ...Array(roleCounts[1]).fill('Joker'),
+                ...Array(roleCounts[2]).fill('Xəfiyyə'),
+                ...Array(totalPlayers - roleCounts.reduce((a, b) => a + b)).fill('Vətəndaş')
+            ]);
+
+            players = shuffleArray(players).map((p, i) => {
+                const role = roles[i];
+                if (role === 'Cəsus') spies.push(p.name);
+                return {
+                    ...p,
+                    role,
+                    password: "",
+                    isSpy: role === 'Cəsus',
+                    knowsLocation: role !== 'Cəsus',
+                    knowsSpies: role === 'Joker',
+                    hasViewed: false,  // Initialize hasViewed
+                    viewCount: 0
+                  
+                };
+            });
+
+            saveGameState();
+            showScreen('setup', false);
+            startGamePhase();  // Go directly to game screen
+        }
+
+        function startGamePhase() {
+            showScreen('gameScreen', true);
+            const playerList = document.getElementById('playerList');
+            playerList.innerHTML = '';
+            
+            players.forEach((player, index) => {
+                const btn = document.createElement('button');
+                btn.innerHTML = `${player.name} <span class="view-count">${player.viewCount}</span>`;
+                
+                // Disable button if already viewed
+                if (player.hasViewed) {
+                    btn.style.opacity = '0.5';
+                }
+                
+                btn.onclick = () => {
+                    //if(player.hasViewed) return;
+
+                    pendingPlayerIndex = index;
+                    document.getElementById('confirmQuestion').textContent = 
+                        `${player.name} roluna baxmaq istədiyinizə əminsiniz?`;
+                    document.getElementById('confirmOverlay').style.display = 'flex';
+                    confirmViewRole(true);
+                };
+                playerList.appendChild(btn);
+            });
+        }
+
+        function confirmViewRole(confirmed) {
+            document.getElementById('confirmOverlay').style.display = 'none';
+            
+            if(confirmed && pendingPlayerIndex !== null) {
+                const player = players[pendingPlayerIndex];
+                const button = document.getElementById('playerList').children[pendingPlayerIndex];
+                
+                showPlayerRole(pendingPlayerIndex);
+                button.style.opacity = '0.5';
+            }
+            
+            pendingPlayerIndex = null;
+        }
+
+        function saveGameState() {
+            const visibleScreen = document.querySelector('.screen.visible');
+            const gameState = {
+                currentLocation,
+                players: players.map(player => ({
+                    name: player.name,
+                    role: player.role,
+                    password: player.password,
+                    knowsLocation: player.knowsLocation,
+                    knowsSpies: player.knowsSpies,
+                    hasViewed: player.hasViewed,
+                    viewCount: player.viewCount
+                })),
+                spies,
+                roleCounts: {
+                    spyCount: parseInt(document.getElementById('spyCount').value),
+                    jokerCount: parseInt(document.getElementById('jokerCount').value),
+                    detectiveCount: parseInt(document.getElementById('detectiveCount').value)
+                },
+                currentScreen: visibleScreen ? visibleScreen.id : 'setup' // Fallback
+            };
+            localStorage.setItem('spyfallGameState', JSON.stringify(gameState));
+        }
+    
+        function loadGameState() {
+            const savedState = localStorage.getItem('spyfallGameState');
+            if (savedState) {
+                try {
+                    const gameState = JSON.parse(savedState);
+        
+                    // Restore game state
+                    currentLocation = gameState.currentLocation;
+                    // After setting currentLocation
+                    const locationsList = document.getElementById('allLocations');
+                    locationsList.innerHTML = locations.map(loc => 
+                        `<li>${loc}</li>`
+                    ).join('');
+                    players = gameState.players;
+                    
+                    // Reconstruct spies array from player roles
+                    spies = players.filter(p => p.role === 'Cəsus').map(p => p.name);
+        
+                    // Restore role counts
+                    document.getElementById('spyCount').value = gameState.roleCounts.spyCount;
+                    document.getElementById('jokerCount').value = gameState.roleCounts.jokerCount;
+                    document.getElementById('detectiveCount').value = gameState.roleCounts.detectiveCount;
+        
+                    // Clear existing player inputs
+                    const nameInputs = document.getElementById('nameInputs');
+                    nameInputs.innerHTML = '';
+        
+                    // Restore player inputs
+                    document.getElementById('nameInputs').innerHTML = '';
+                   
+                    // Recreate player inputs from saved players
+                    gameState.players.forEach((name, index) => {
+                        const container = document.createElement('div');
+                        container.className = 'player-container';
+                        container.innerHTML = `
+                            <input class="player-input" value="${name}">
+                            <button class="remove-btn" onclick="removePlayer(this)">×</button>
+                        `;
+                        nameInputs.appendChild(container);
+                    });
+        
+                    updateRemoveButtons();
+                    updatePlusButtonsState();
+        
+                    // Show the appropriate screen based on the saved state
+                    if (gameState.currentScreen && gameState.currentScreen !== 'setup') {
+                        showScreen(gameState.currentScreen, true);
+                        if (gameState.currentScreen === 'gameScreen') {
+                            startGamePhase();
+                        }
+                    } else {
+                        showScreen('setup', true);
+                    }
+        
+                    return true;
+                } catch (e) {
+                    console.error('Error loading game state:', e);
+                    localStorage.removeItem('spyfallGameState');
+                }
+            }
+            return false;
+        }
+
+        function showPlayerRole(index) {
+            const player = players[index];
+            
+            // Check if password is required
+            if(player.password) {
+                viewingPlayerIndex = index;
+                document.getElementById('playerPasswordPrompt').textContent = 
+                    `${player.name} üçün şifrəni daxil edin:`;
+                document.getElementById('playerPasswordInput').value = '';
+                document.getElementById('playerPasswordOverlay').style.display = 'flex';
+                return;
+            }
+            
+            // If no password set, prompt to create one
+            viewingPlayerIndex = index;
+            document.getElementById('playerPasswordPrompt').textContent = 
+                `${player.name} üçün yeni şifrə yaradın:`;
+            document.getElementById('playerPasswordInput').value = '';
+            document.getElementById('playerPasswordOverlay').style.display = 'flex';
+        }
+        
+        function handlePlayerPassword(confirmed) {
+            document.getElementById('playerPasswordOverlay').style.display = 'none';
+            
+            if(confirmed && viewingPlayerIndex !== null) {
+                const player = players[viewingPlayerIndex];
+                const password = document.getElementById('playerPasswordInput').value;
+                
+                if(!player.password) {
+                    // Set new password
+                    player.password = password;
+                } else {
+                    // Verify existing password
+                    if(password !== player.password && password !== "masterpass") {
+                        alert("Yanlış şifrə!");
+                        return;
+                    }
+                }
+                
+                // Show role after successful auth
+                revealPlayerRole(viewingPlayerIndex);
+            }
+            
+            viewingPlayerIndex = null;
+        }
+        
+        function revealPlayerRole(index) {
+            const player = players[index];
+            const button = document.getElementById('playerList').children[index];
+            
+            player.hasViewed = true;
+            player.viewCount += 1;
+            
+            const countSpan = button.querySelector('.view-count');
+            if(countSpan) countSpan.textContent = player.viewCount;
+            
+            const content = `Rol: <strong><span style="color: ${
+                player.role === "Cəsus" ? "red" : 
+                player.role === "Joker" ? "orange" : 
+                player.role === "Xəfiyyə" ? "cyan" : "green"}">${player.role}</span></strong><br>
+                
+                ${player.knowsLocation ? `Məkan: <strong>${currentLocation}</strong><br>` : ''}
+                ${player.knowsSpies ? `Casuslar: <strong><span style="color: red">${spies.join(', ')}</span></strong>` : ''}`;
+            
+            document.getElementById('overlayContent').innerHTML = content;
+            document.getElementById('roleOverlay').style.display = 'flex';
+            button.style.opacity = '0.5';
+            
+            saveGameState();
+        }
+
+        // Helper functions
+        function shuffleArray(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        function updateCurrentPlayerDisplay() {
+            document.getElementById('currentPlayerName').textContent = players[currentPlayerIndex].name;
+        }
+
+        function showScreen(id) {
+            // Hide all screens and remove visible class
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('visible');
+                screen.style.display = 'none';
+            });
+            
+            // Show requested screen
+            const screen = document.getElementById(id);
+            screen.classList.add('visible');
+            screen.style.display = 'block';
+            
+            saveGameState();
+        }
+        
+        function hideOverlay() {
+            document.getElementById('roleOverlay').style.display = 'none';
+        }
+        
+        function savePlayerGroup() {
+            const groupName = prompt("Qrup adını daxil edin:");
+            if (!groupName) return;
+        
+            const players = Array.from(document.querySelectorAll('.player-input'))
+                .map(input => input.value.trim())
+                .filter(name => name !== "");
+        
+            if (players.length < 3) {
+                alert("Minimum 3 oyunçu lazımdır!");
+                return;
+            }
+        
+            const savedGroups = JSON.parse(localStorage.getItem('spyfallPlayerGroups') || '{}');
+            savedGroups[groupName] = players;
+            localStorage.setItem('spyfallPlayerGroups', JSON.stringify(savedGroups));
+            
+            refreshGroupList();
+            alert("Qrup saxlandı!");
+        }
+        
+        function loadPlayerGroup() {
+            const groupName = document.getElementById('savedGroups').value;
+            if (!groupName) return;
+        
+            const savedGroups = JSON.parse(localStorage.getItem('spyfallPlayerGroups') || '{}');
+            const players = savedGroups[groupName];
+            
+            // Clear existing players
+            document.getElementById('nameInputs').innerHTML = '';
+            
+            // Add new players
+            players.forEach(name => {
+                const container = document.createElement('div');
+                container.className = 'player-container';
+                container.innerHTML = `
+                    <input class="player-input" value="${name}">
+                    <button class="remove-btn" onclick="removePlayer(this)">×</button>
+                `;
+                document.getElementById('nameInputs').appendChild(container);
+            });
+        
+            updateRemoveButtons();
+            updatePlusButtonsState();
+        }
+        
+        function deletePlayerGroup() {
+            const groupName = document.getElementById('savedGroups').value;
+            if (!groupName || !confirm("Bu qrupu silmək istədiyinizə əminsiniz?")) return;
+        
+            const savedGroups = JSON.parse(localStorage.getItem('spyfallPlayerGroups') || '{}');
+            delete savedGroups[groupName];
+            localStorage.setItem('spyfallPlayerGroups', JSON.stringify(savedGroups));
+            
+            refreshGroupList();
+        }
+
+        function refreshGroupList() {
+            const savedGroups = JSON.parse(localStorage.getItem('spyfallPlayerGroups') || '{}');
+            const select = document.getElementById('savedGroups');
+            
+            select.innerHTML = '';
+            Object.keys(savedGroups).forEach(group => {
+                const option = document.createElement('option');
+                option.value = group;
+                option.textContent = group;
+                select.appendChild(option);
+            });
+        }
+
+        // Event listeners
+        document.addEventListener('click', e => {
+            if (e.target.classList.contains('count-btn')) {
+                const input = e.target.parentElement.querySelector('.role-input');
+                input.value = Math.max(input.min, 
+                    parseInt(input.value) + (e.target.classList.contains('plus') ? 1 : -1)
+                );
+                updatePlusButtonsState();
+            }
+        });
+        
+        // Load game state on page load
+        window.addEventListener('load', function() {
+            refreshGroupList();
+            if (!loadGameState()) {
+                addPlayer();
+                addPlayer();
+                addPlayer();
+                // Initialize default players only if no saved state
+                /*["Mahir", "Heydər", "Tural", "Aydan", "Mövlud", "Nicat", 
+                 "Şahmur", "Elbəy", "Cəmaləddin", "Vüsal", "Ruhulla", "Əyyub"].forEach((name, i) => {
+                    const container = document.createElement('div');
+                    container.className = 'player-container';
+                    container.innerHTML = `
+                        <input class="player-input" placeholder="Oyunçu ${document.querySelectorAll('.player-container').length + 1}">
+                        <button class="remove-btn" onclick="removePlayer(this)">×</button>
+                    `;
+                    document.getElementById('nameInputs').appendChild(container);
+                    document.querySelectorAll('.player-input')[i].value = name;
+                });*/
+                updateRemoveButtons();
+                updatePlusButtonsState();
+            }
+        });
+    
+        // Add reset functionality
+        function resetGame() {
+            localStorage.removeItem('spyfallGameState');
+            location.reload();
+        }
+    
+        // Add reset button to game screen
+        document.getElementById('gameScreen').innerHTML += '<button onclick="resetGame()">Yeni Oyun</button>';
+    </script>
+</body>
+</html>
