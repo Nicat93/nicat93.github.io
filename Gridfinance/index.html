@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="theme-color" content="#030712" />
     <title>GridFinance</title>
-    <link rel="manifest" href="./manifest.json" />
+    <link rel="manifest" href="./assets/manifest.json" />
+
   <script type="importmap">
 {
   "imports": {
@@ -17,11 +18,11 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
+  <script type="module" crossorigin src="./assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index.css">
 </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="./index.tsx"></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
@@ -31,6 +32,5 @@
         });
       }
     </script>
-  <script type="module" src="/index.tsx"></script>
 </body>
 </html>
