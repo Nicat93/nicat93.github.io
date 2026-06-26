@@ -56,8 +56,18 @@
         .player-container {
             display: flex;
             justify-content: center;
+            align-items: center;
             margin: 10px;
             gap: 10px;
+        }
+
+        .player-num {
+            color: var(--primary-color);
+            min-width: 24px;
+            text-align: right;
+            font-size: 0.9em;
+            opacity: 0.85;
+            flex: 0 0 auto;
         }
 
         #nameInputs .player-input {
@@ -391,7 +401,8 @@
             max-width: 92%;
         }
 
-        #locManagerToggle { width: 100%; max-width: 340px; }
+        #locationManager { text-align: center; }
+        #locManagerToggle { width: auto; }
 
         #locManagerBody {
             background: var(--accent-color);
@@ -428,43 +439,38 @@
             margin: 8px 0 14px;
         }
 
-        .loc-category {
+        .loc-bulk-row {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .loc-bulk-btn {
+            margin: 0;
+            padding: 6px 14px;
+            font-size: 0.8em;
+        }
+
+        #locationItemsContainer {
+            max-height: 320px;
+            overflow-y: auto;
             border: 1px solid var(--primary-color);
             border-radius: 8px;
-            margin-bottom: 10px;
-            overflow: hidden;
+            padding: 4px 12px;
         }
-
-        .loc-cat-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 12px;
-            background: rgba(0, 255, 0, 0.08);
-        }
-
-        .loc-cat-title { color: var(--primary-color); font-weight: bold; }
-        .loc-cat-count { font-size: 0.8em; opacity: 0.8; }
-
-        .loc-cat-toggle {
-            margin: 0;
-            padding: 5px 12px;
-            font-size: 0.75em;
-            flex: 0 0 auto;
-        }
-
-        .loc-items { padding: 6px 12px 12px; display: none; }
-        .loc-items.open { display: block; }
 
         .loc-item {
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 5px 0;
+            padding: 6px 0;
             overflow-wrap: anywhere;
             cursor: pointer;
+            border-bottom: 1px solid rgba(0, 255, 0, 0.12);
         }
+        .loc-item:last-child { border-bottom: none; }
 
         .loc-item input[type="checkbox"] {
             width: 18px;
@@ -491,7 +497,7 @@
         .loc-summary {
             text-align: center;
             color: var(--primary-color);
-            margin-top: 8px;
+            margin-top: 10px;
             font-size: 0.9em;
         }
     </style>
@@ -526,28 +532,34 @@
                     </div>
                 </label>
             </div>
+
+            <div id="locationManager">
+                <button type="button" id="locManagerToggle" onclick="toggleLocationManager()">📍 Məkanları İdarə Et</button>
+                <div id="locManagerBody" style="display:none">
+                    <div class="loc-add-row">
+                        <input id="customLocationInput" placeholder="Yeni məkan(lar)...">
+                        <button onclick="addCustomLocations()">Əlavə et</button>
+                    </div>
+                    <p class="loc-hint">Bir neçə məkanı vergüllə (,) ayıraraq birdən əlavə edə bilərsən.</p>
+                    <div class="loc-bulk-row">
+                        <button class="loc-bulk-btn" onclick="setAllLocationsEnabled(true)">Hamısını seç</button>
+                        <button class="loc-bulk-btn" onclick="setAllLocationsEnabled(false)">Heç birini seçmə</button>
+                        <button class="loc-bulk-btn" onclick="copyCustomLocations()">Xüsusiləri kopyala</button>
+                    </div>
+                    <div id="locationItemsContainer"></div>
+                    <div class="loc-summary" id="locSummary"></div>
+                </div>
+            </div>
+
             <div id="groupManagement">
                 <select id="savedGroups"></select>
                 <button onclick="loadPlayerGroup()">Qrupu Yüklə</button>
                 <button onclick="savePlayerGroup()">Qrupu Saxla</button>
                 <button onclick="deletePlayerGroup()">Qrupu Sil</button>
             </div>
+            <button onclick="addPlayer()">Oyunçu Əlavə Et</button>
             <div id="nameInputs">
                 <!-- players -->
-            </div>
-            <button onclick="addPlayer()">Oyunçu Əlavə Et</button>
-        </div>
-
-        <div id="locationManager">
-            <button type="button" id="locManagerToggle" onclick="toggleLocationManager()">📍 Məkanları İdarə Et</button>
-            <div id="locManagerBody" style="display:none">
-                <div class="loc-add-row">
-                    <input id="customLocationInput" placeholder="Yeni məkan(lar)...">
-                    <button onclick="addCustomLocations()">Əlavə et</button>
-                </div>
-                <p class="loc-hint">Bir neçə məkanı vergüllə (,) ayıraraq birdən əlavə edə bilərsən.</p>
-                <div id="categoriesContainer"></div>
-                <div class="loc-summary" id="locSummary"></div>
             </div>
         </div>
 
@@ -637,10 +649,10 @@
 
     <script>
         // ============================================================
-        //  APP VERSION — edit this one line to bump the version number.
-        //  It is shown in the bottom-right corner of the screen.
+        //  APP VERSION — fixed manually. Edit this line only when YOU
+        //  decide to change it. Shown in the bottom-right corner.
         // ============================================================
-        const APP_VERSION = 'V1.4';
+        const APP_VERSION = 'v1.2';
 
         // Show the version in the corner tag (single source of truth above).
         (function () {
@@ -648,110 +660,98 @@
             if (tag) tag.textContent = APP_VERSION;
         })();
 
-        // Built-in locations grouped into a few wide categories (family friendly).
-        const builtinLocationCategories = {
-            "Macəra & Fantastik": [
-                "Kosmos",
-                "Kosmik Gəmi",
-                "Sualtı Qayıq",
-                "Sualtı Şəhər",
-                "Quldur Gəmisi",
-                "Ada",
-                "Qütb",
-                "Buzdan Saray",
-                "Dinozavr Parkı",
-                "Qala (Orta Əsr)",
-                "Cəngavər Turniri",
-                "Robot Zavodu",
-            ],
-            "Gündəlik Həyat": [
-                "Xəstəxana",
-                "Məktəb",
-                "Universitet",
-                "Uşaq Bağçası",
-                "Kitabxana",
-                "Ticarət Mərkəzi",
-                "Supermarket",
-                "Kənd Bazarı",
-                "Geyim Mağazası",
-                "Çörək Sexi",
-                "Restoran",
-                "Kafe",
-                "Çay Evi",
-                "Bank",
-                "Poçt",
-                "Aptek",
-                "Diş Klinikası",
-                "Polis Bölməsi",
-                "Yanğınsöndürmə Stansiyası",
-                "Məhkəmə",
-                "Otel",
-                "Yanacaqdoldurma Məntəqəsi",
-                "Hava Limanı",
-                "Sərnişin Təyyarəsi",
-                "Sərnişin Qatarı",
-                "Avtovağzal",
-            ],
-            "Əyləncə & İdman": [
-                "Zoopark",
-                "Akvapark",
-                "Əyləncə Parkı",
-                "Muzey",
-                "Rəsm Qalereyası",
-                "Sirk",
-                "Teatr",
-                "Kinoteatr",
-                "Hovuz",
-                "Stadion",
-                "İdman Zalı",
-                "Buz Meydançası",
-                "Tennis Kortu",
-                "Mini Qolf",
-                "Karting Mərkəzi",
-                "Atçılıq Meydanı",
-                "Atıcılıq Mərkəzi",
-                "Şahmat Klubu",
-                "Oyun Avtomatları Salonu",
-                "Şirniyyat Fabriki",
-            ],
-            "Təbiət & Açıq Hava": [
-                "Mağara",
-                "Səhra",
-                "Kanyon",
-                "Şəlalə",
-                "Dağ",
-                "Meşə",
-                "Tropik Cəngəllik",
-                "Botanika Bağı",
-                "Göl",
-                "Çimərlik",
-                "Balıqçı Limanı",
-                "Xizək Kurortu",
-                "Çadır Düşərgəsi",
-                "Ferma",
-                "Meyvə Bağı",
-                "Arı Ferması",
-            ],
-            "Elm & Sənaye": [
-                "Tədqiqat Laboratoriyası",
-                "Rəsədxana",
-                "Hərbi Baza",
-                "Avtomobil Zavodu",
-                "Gəmi Zavodu",
-                "Tekstil Fabriki",
-                "Çap Mətbəəsi",
-                "Nüvə Elektrik Stansiyası",
-                "Su Təmizləyici Stansiya",
-                "Neft Platforması",
-                "Mədən",
-                "Mayak",
-            ],
-        };
+        // Built-in locations (family friendly), flat list — no categories.
+        const builtinLocations = [
+            "Kosmos",
+            "Kosmik Gəmi",
+            "Sualtı Gəmi",
+            "Sualtı Şəhər",
+            "Quldur Gəmisi",
+            "Ada",
+            "Qütb",
+            "Buzdan Saray",
+            "Dinozavr Parkı",
+            "Qala (Orta Əsr)",
+            "Cəngavər Turniri",
+            "Robot Zavodu",
+            "Xəstəxana",
+            "Məktəb",
+            "Universitet",
+            "Uşaq Bağçası",
+            "Kitabxana",
+            "Ticarət Mərkəzi",
+            "Supermarket",
+            "Kənd Bazarı",
+            "Geyim Mağazası",
+            "Çörək Sexi",
+            "Restoran",
+            "Kafe",
+            "Çay Evi",
+            "Bank",
+            "Poçt",
+            "Aptek",
+            "Diş Klinikası",
+            "Polis Bölməsi",
+            "Yanğınsöndürmə Stansiyası",
+            "Məhkəmə",
+            "Otel",
+            "Yanacaqdoldurma Məntəqəsi",
+            "Hava Limanı",
+            "Sərnişin Təyyarəsi",
+            "Sərnişin Qatarı",
+            "Avtovağzal",
+            "Zoopark",
+            "Akvapark",
+            "Əyləncə Parkı",
+            "Muzey",
+            "Rəsm Qalereyası",
+            "Sirk",
+            "Teatr",
+            "Kinoteatr",
+            "Hovuz",
+            "Stadion",
+            "İdman Zalı",
+            "Buz Meydançası",
+            "Tennis Kortu",
+            "Mini Qolf",
+            "Karting Mərkəzi",
+            "Atçılıq Meydanı",
+            "Atıcılıq Mərkəzi",
+            "Şahmat Klubu",
+            "Oyun Avtomatları Salonu",
+            "Şirniyyat Fabriki",
+            "Mağara",
+            "Səhra",
+            "Kanyon",
+            "Şəlalə",
+            "Dağ",
+            "Meşə",
+            "Tropik Cəngəllik",
+            "Botanika Bağı",
+            "Göl",
+            "Çimərlik",
+            "Balıqçı Limanı",
+            "Xizək Kurortu",
+            "Çadır Düşərgəsi",
+            "Ferma",
+            "Meyvə Bağı",
+            "Arı Ferması",
+            "Tədqiqat Laboratoriyası",
+            "Rəsədxana",
+            "Hərbi Baza",
+            "Avtomobil Zavodu",
+            "Gəmi Zavodu",
+            "Tekstil Fabriki",
+            "Çap Mətbəəsi",
+            "Nüvə Elektrik Stansiyası",
+            "Su Təmizləyici Stansiya",
+            "Neft Platforması",
+            "Mədən",
+            "Mayak",
+        ];
 
-        const CUSTOM_CATEGORY = "Xüsusi";
-
-        // Flattened built-in list (used as a fallback for old share links).
-        const locations = Object.values(builtinLocationCategories).flat();
+        // Alias kept for fallback uses (e.g. old share links).
+        const locations = builtinLocations;
 
         // ---- Custom locations & enable/disable state (persisted) ----
         function getCustomLocations() {
@@ -769,23 +769,15 @@
             localStorage.setItem('spyfallDisabledLocations', JSON.stringify([...set]));
         }
 
-        // All categories including the custom one (only shown if it has entries).
-        function getAllCategories() {
-            const cats = {};
-            for (const [c, arr] of Object.entries(builtinLocationCategories)) cats[c] = [...arr];
-            const custom = getCustomLocations();
-            if (custom.length) cats[CUSTOM_CATEGORY] = custom;
-            return cats;
+        // Custom + built-in locations (custom shown first / at the top).
+        function getAllLocations() {
+            return [...getCustomLocations(), ...builtinLocations];
         }
 
-        // Locations that are currently enabled (built-in + custom, minus disabled).
+        // Locations that are currently enabled (all minus disabled).
         function getEnabledLocations() {
             const disabled = getDisabledLocations();
-            const out = [];
-            Object.values(getAllCategories()).forEach(arr =>
-                arr.forEach(loc => { if (!disabled.has(loc)) out.push(loc); })
-            );
-            return out;
+            return getAllLocations().filter(loc => !disabled.has(loc));
         }
 
         // Safely render a list of location names into a <ul>.
@@ -803,7 +795,6 @@
         let activeLocations = [];          // pool used for the current round + shown to players
         let pendingPlayerIndex = null;
         let viewingPlayerIndex = null;
-        let expandedCategories = new Set(); // which category panels are open in the manager
 
         // ---- Shareable link state ----
         let gameId = null;       // unique id per game, used to key device locks
@@ -830,7 +821,7 @@
             if (!names.length) return;
 
             const custom = getCustomLocations();
-            const known = new Set([...locations, ...custom].map(s => s.toLocaleLowerCase('az')));
+            const known = new Set(getAllLocations().map(s => s.toLocaleLowerCase('az')));
             let added = 0;
             names.forEach(n => {
                 const key = n.toLocaleLowerCase('az');
@@ -849,6 +840,33 @@
             renderLocationManager();
         }
 
+        // Copy text to clipboard with a legacy fallback.
+        function copyTextToClipboard(text, onDone) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(onDone, () => legacyCopy(text, onDone));
+            } else {
+                legacyCopy(text, onDone);
+            }
+        }
+        function legacyCopy(text, onDone) {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); } catch (e) {}
+            document.body.removeChild(ta);
+            if (onDone) onDone();
+        }
+
+        // Copy current custom locations as comma-separated text for easy sharing.
+        function copyCustomLocations() {
+            const custom = getCustomLocations();
+            if (!custom.length) { alert('Xüsusi məkan yoxdur.'); return; }
+            copyTextToClipboard(custom.join(', '), () => alert('Xüsusi məkanlar kopyalandı!'));
+        }
+
         function setLocationEnabled(name, enabled) {
             const disabled = getDisabledLocations();
             if (enabled) disabled.delete(name); else disabled.add(name);
@@ -856,9 +874,9 @@
             renderLocationManager();
         }
 
-        function setCategoryEnabled(cat, enabled) {
+        function setAllLocationsEnabled(enabled) {
             const disabled = getDisabledLocations();
-            (getAllCategories()[cat] || []).forEach(loc => {
+            getAllLocations().forEach(loc => {
                 if (enabled) disabled.delete(loc); else disabled.add(loc);
             });
             saveDisabledLocations(disabled);
@@ -866,85 +884,45 @@
         }
 
         function renderLocationManager() {
-            const container = document.getElementById('categoriesContainer');
+            const container = document.getElementById('locationItemsContainer');
             if (!container) return;
             container.innerHTML = '';
             const disabled = getDisabledLocations();
-            const cats = getAllCategories();
+            const customSet = new Set(getCustomLocations());
 
-            Object.entries(cats).forEach(([cat, locs]) => {
-                const enabledCount = locs.filter(l => !disabled.has(l)).length;
-                const allOn = enabledCount === locs.length;
+            getAllLocations().forEach(loc => {
+                const isEnabled = !disabled.has(loc);
+                const row = document.createElement('label');
+                row.className = 'loc-item' + (isEnabled ? '' : ' disabled');
 
-                const block = document.createElement('div');
-                block.className = 'loc-category';
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.checked = isEnabled;
+                cb.onchange = () => setLocationEnabled(loc, cb.checked);
 
-                // Header (click to expand/collapse)
-                const header = document.createElement('div');
-                header.className = 'loc-cat-header';
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'loc-name';
+                nameSpan.textContent = loc;
 
-                const titleWrap = document.createElement('div');
-                const title = document.createElement('span');
-                title.className = 'loc-cat-title';
-                const isOpen = expandedCategories.has(cat);
-                title.textContent = (isOpen ? '▾ ' : '▸ ') + cat;
-                const count = document.createElement('span');
-                count.className = 'loc-cat-count';
-                count.textContent = ` (${enabledCount}/${locs.length})`;
-                titleWrap.appendChild(title);
-                titleWrap.appendChild(count);
-                titleWrap.style.cursor = 'pointer';
-                titleWrap.onclick = () => {
-                    if (expandedCategories.has(cat)) expandedCategories.delete(cat);
-                    else expandedCategories.add(cat);
-                    renderLocationManager();
-                };
+                row.appendChild(cb);
+                row.appendChild(nameSpan);
 
-                const catToggle = document.createElement('button');
-                catToggle.className = 'loc-cat-toggle';
-                catToggle.textContent = allOn ? 'Söndür' : 'Yandır';
-                catToggle.onclick = (e) => { e.stopPropagation(); setCategoryEnabled(cat, !allOn); };
-
-                header.appendChild(titleWrap);
-                header.appendChild(catToggle);
-                block.appendChild(header);
-
-                // Items
-                const items = document.createElement('div');
-                items.className = 'loc-items' + (isOpen ? ' open' : '');
-                locs.forEach(loc => {
-                    const isEnabled = !disabled.has(loc);
-                    const row = document.createElement('label');
-                    row.className = 'loc-item' + (isEnabled ? '' : ' disabled');
-
-                    const cb = document.createElement('input');
-                    cb.type = 'checkbox';
-                    cb.checked = isEnabled;
-                    cb.onchange = () => setLocationEnabled(loc, cb.checked);
-
-                    const nameSpan = document.createElement('span');
-                    nameSpan.className = 'loc-name';
-                    nameSpan.textContent = loc;
-
-                    row.appendChild(cb);
-                    row.appendChild(nameSpan);
-
-                    if (cat === CUSTOM_CATEGORY) {
-                        const del = document.createElement('button');
-                        del.className = 'loc-del';
-                        del.textContent = '×';
-                        del.title = 'Sil';
-                        del.onclick = (e) => { e.preventDefault(); deleteCustomLocation(loc); };
-                        row.appendChild(del);
-                    }
-                    items.appendChild(row);
-                });
-                block.appendChild(items);
-                container.appendChild(block);
+                if (customSet.has(loc)) {
+                    const del = document.createElement('button');
+                    del.className = 'loc-del';
+                    del.textContent = '×';
+                    del.title = 'Sil';
+                    del.onclick = (e) => { e.preventDefault(); deleteCustomLocation(loc); };
+                    row.appendChild(del);
+                }
+                container.appendChild(row);
             });
 
             const summary = document.getElementById('locSummary');
-            if (summary) summary.textContent = `Aktiv məkan sayı: ${getEnabledLocations().length}`;
+            if (summary) {
+                summary.textContent =
+                    `Aktiv məkan sayı: ${getEnabledLocations().length} / ${getAllLocations().length}`;
+            }
         }
 
         
@@ -963,14 +941,45 @@
         }
         
         // Player management
-        function addPlayer() {
+        // Build a player row (number + name input + remove). prepend=true adds it to the top.
+        function createPlayerSlot(name = '', prepend = false) {
             const container = document.createElement('div');
             container.className = 'player-container';
-            container.innerHTML = `
-                <input class="player-input" placeholder="Oyunçu ${document.querySelectorAll('.player-container').length + 1}">
-                <button class="remove-btn" onclick="removePlayer(this)">×</button>
-            `;
-            document.getElementById('nameInputs').appendChild(container);
+
+            const num = document.createElement('span');
+            num.className = 'player-num';
+
+            const input = document.createElement('input');
+            input.className = 'player-input';
+            input.placeholder = 'Oyunçu';
+            input.value = name || '';
+
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'remove-btn';
+            removeBtn.textContent = '×';
+            removeBtn.onclick = () => removePlayer(removeBtn);
+
+            container.appendChild(num);
+            container.appendChild(input);
+            container.appendChild(removeBtn);
+
+            const parent = document.getElementById('nameInputs');
+            if (prepend && parent.firstChild) parent.insertBefore(container, parent.firstChild);
+            else parent.appendChild(container);
+
+            updatePlayerNumbers();
+            return container;
+        }
+
+        function updatePlayerNumbers() {
+            document.querySelectorAll('#nameInputs .player-container').forEach((c, i) => {
+                const num = c.querySelector('.player-num');
+                if (num) num.textContent = (i + 1) + '.';
+            });
+        }
+
+        function addPlayer() {
+            createPlayerSlot('', true); // new empty slot goes to the top
             updateRemoveButtons();
             updatePlusButtonsState();
         }
@@ -978,7 +987,7 @@
         function removePlayer(btn) {
             if (document.querySelectorAll('.player-container').length <= 3) return;
             btn.parentElement.remove();
-            updatePlaceholders();
+            updatePlayerNumbers();
             updateRemoveButtons();
             updatePlusButtonsState();
         }
@@ -1013,6 +1022,8 @@
                 alert("Ən azı bir məkan aktiv olmalıdır! Məkanları İdarə Et bölməsindən yoxla.");
                 return;
             }
+            // Shuffle so the reference list (and pick) isn't in a fixed order
+            activeLocations = shuffleArray([...activeLocations]);
 
             currentLocation = activeLocations[Math.floor(Math.random() * activeLocations.length)];
             // After setting currentLocation, show the enabled pool to players
@@ -1146,21 +1157,11 @@
                     // Clear existing player inputs
                     const nameInputs = document.getElementById('nameInputs');
                     nameInputs.innerHTML = '';
-        
-                    // Restore player inputs
-                    document.getElementById('nameInputs').innerHTML = '';
-                   
-                    // Recreate player inputs from saved players
-                    gameState.players.forEach((name, index) => {
-                        const container = document.createElement('div');
-                        container.className = 'player-container';
-                        container.innerHTML = `
-                            <input class="player-input" value="${name}">
-                            <button class="remove-btn" onclick="removePlayer(this)">×</button>
-                        `;
-                        nameInputs.appendChild(container);
-                    });
-        
+
+                    // Recreate player inputs from saved players (in saved order)
+                    gameState.players.forEach(p => createPlayerSlot(p.name, false));
+                    updatePlayerNumbers();
+
                     updateRemoveButtons();
                     updatePlusButtonsState();
         
@@ -1465,18 +1466,11 @@
             
             // Clear existing players
             document.getElementById('nameInputs').innerHTML = '';
-            
-            // Add new players
-            players.forEach(name => {
-                const container = document.createElement('div');
-                container.className = 'player-container';
-                container.innerHTML = `
-                    <input class="player-input" value="${name}">
-                    <button class="remove-btn" onclick="removePlayer(this)">×</button>
-                `;
-                document.getElementById('nameInputs').appendChild(container);
-            });
-        
+
+            // Add new players (in saved order)
+            players.forEach(name => createPlayerSlot(name, false));
+            updatePlayerNumbers();
+
             updateRemoveButtons();
             updatePlusButtonsState();
         }
