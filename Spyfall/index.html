@@ -246,6 +246,80 @@
             font-weight: bold;
             text-shadow: 0 0 5px rgba(0, 255, 0, 0.3);
         }
+
+        /* ---------- Remote / shareable link mode ---------- */
+        #shareLinkPanel {
+            margin: 20px auto;
+            max-width: 92%;
+            background: var(--accent-color);
+            border: 1px solid var(--primary-color);
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        #shareLinkPanel h3 {
+            color: var(--primary-color);
+            margin-top: 0;
+        }
+
+        #shareLinkInput {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px;
+            background: var(--background-color);
+            border: 1px solid var(--primary-color);
+            color: var(--text-color);
+            border-radius: 5px;
+            margin: 8px 0;
+        }
+
+        #playerNameButtons .name-btn {
+            display: block;
+            width: 280px;
+            max-width: 90%;
+            margin: 8px auto;
+        }
+
+        #remoteRoleContent {
+            background: var(--accent-color);
+            padding: 25px;
+            border-radius: 10px;
+            border: 2px solid var(--primary-color);
+            max-width: 420px;
+            margin: 20px auto;
+            text-align: left;
+        }
+
+        .locked-note {
+            color: var(--primary-color);
+            margin: 0 0 12px 0;
+        }
+
+        #remoteLocationsList {
+            background: var(--accent-color);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid var(--primary-color);
+            max-width: 92%;
+            margin: 20px auto;
+            opacity: 0.85;
+        }
+
+        #remoteLocationsList h3 {
+            color: var(--primary-color);
+            margin-top: 0;
+        }
+
+        #allLocationsRemote {
+            columns: 3;
+            padding: 0;
+            list-style: none;
+        }
+
+        #allLocationsRemote li {
+            padding: 3px 0;
+            border: 1px solid var(--primary-color);
+        }
     </style>
 </head>
 <body>
@@ -294,12 +368,41 @@
 
     <div id="gameScreen" class="screen">
         <h2 class="glow-text">Oyun Davam Edir!</h2>
+
+        <!-- Shareable link: send to all players, each picks their own name on their own device -->
+        <div id="shareLinkPanel">
+            <h3>Oyunçulara göndərmək üçün link:</h3>
+            <input id="shareLinkInput" readonly>
+            <button onclick="copyShareLink()">Linki Kopyala</button>
+            <p style="font-size:0.85em;opacity:0.8;margin-bottom:0">
+                Eyni linki bütün oyunçulara göndər. Hər kəs öz cihazında öz adını seçəcək.
+                Seçimdən sonra həmin cihazda ad dəyişdirilə bilməz.
+            </p>
+        </div>
+
         <div id="playerList" class="role-config"></div>
             <!-- Add locations list -->
             <div id="locationsList">
                 <h3>Bütün Məkanlar:</h3>
                 <ul id="allLocations"></ul>
             </div>
+    </div>
+
+    <!-- Remote player view: shown when someone opens a shared link -->
+    <div id="playerView" class="screen">
+        <h1 class="glow-text">🕵️ Spyfall</h1>
+        <div id="playerSelect">
+            <h2>Sən kimsən?</h2>
+            <p style="opacity:0.8;font-size:0.9em">Adını seç. Seçimdən sonra bu cihazda dəyişdirilə bilməz.</p>
+            <div id="playerNameButtons"></div>
+        </div>
+        <div id="playerRoleReveal" style="display:none">
+            <div id="remoteRoleContent"></div>
+            <div id="remoteLocationsList">
+                <h3>Bütün Məkanlar:</h3>
+                <ul id="allLocationsRemote"></ul>
+            </div>
+        </div>
     </div>
     
     <div id="playerPasswordOverlay" class="overlay">
@@ -320,6 +423,18 @@
             <div class="modal-buttons">
                 <button onclick="confirmViewRole(true)">Bəli</button>
                 <button onclick="confirmViewRole(false)" class="cancel-btn">Xeyir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm name claim in remote player view -->
+    <div id="claimConfirmOverlay" class="overlay">
+        <div class="modal-content">
+            <h3 id="claimConfirmQuestion"></h3>
+            <p style="font-size:0.85em;opacity:0.8">Seçimdən sonra bu cihazda dəyişdirilə bilməz.</p>
+            <div class="modal-buttons">
+                <button onclick="confirmClaim(false)" class="cancel-btn">Xeyir</button>
+                <button onclick="confirmClaim(true)">Bəli</button>
             </div>
         </div>
     </div>
@@ -374,6 +489,11 @@
         let currentLocation, players = [], spies = [];
         let pendingPlayerIndex = null;
         let viewingPlayerIndex = null;
+
+        // ---- Shareable link state ----
+        let gameId = null;       // unique id per game, used to key device locks
+        let remoteData = null;   // decoded payload when viewing via a shared link
+        let pendingClaimName = null;
         
         function getCurrentRolesSum() {
             return ['spyCount', 'jokerCount', 'detectiveCount'] // Use string IDs
@@ -466,6 +586,9 @@
                 };
             });
 
+            // New unique game id for this round (keys the per-device name lock)
+            gameId = 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
             saveGameState();
             showScreen('setup', false);
             startGamePhase();  // Go directly to game screen
@@ -496,6 +619,8 @@
                 };
                 playerList.appendChild(btn);
             });
+
+            updateShareLink();
         }
 
         function confirmViewRole(confirmed) {
@@ -515,6 +640,7 @@
         function saveGameState() {
             const visibleScreen = document.querySelector('.screen.visible');
             const gameState = {
+                gameId,
                 currentLocation,
                 players: players.map(player => ({
                     name: player.name,
@@ -543,6 +669,7 @@
                     const gameState = JSON.parse(savedState);
         
                     // Restore game state
+                    gameId = gameState.gameId || gameId;
                     currentLocation = gameState.currentLocation;
                     // After setting currentLocation
                     const locationsList = document.getElementById('allLocations');
@@ -670,6 +797,153 @@
             saveGameState();
         }
 
+        /* ===================================================================
+           SHAREABLE LINK MODE
+           - Host generates one link containing the round (location + roles).
+           - Everyone opens the SAME link; each device picks one name.
+           - The chosen name is locked to that device via localStorage so the
+             link always reveals the same role when reopened on that device.
+           Note: this is a server-less game, so the round data travels inside
+           the link. It works on trust between friends — a player who decodes
+           the link could in theory read everyone's roles.
+           =================================================================== */
+
+        // Unicode-safe base64 (handles Azerbaijani characters)
+        function b64EncodeUnicode(str) {
+            const bytes = new TextEncoder().encode(str);
+            let bin = '';
+            bytes.forEach(b => { bin += String.fromCharCode(b); });
+            return btoa(bin);
+        }
+        function b64DecodeUnicode(b64) {
+            const bin = atob(b64);
+            const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+            return new TextDecoder().decode(bytes);
+        }
+        function encodeState(obj) { return b64EncodeUnicode(JSON.stringify(obj)); }
+        function decodeState(s) { return JSON.parse(b64DecodeUnicode(s)); }
+
+        function buildShareLink() {
+            const payload = {
+                id: gameId,
+                loc: currentLocation,
+                spies: spies,
+                players: players.map(p => ({
+                    n: p.name,
+                    r: p.role,
+                    kl: p.knowsLocation,
+                    ks: p.knowsSpies
+                }))
+            };
+            const encoded = encodeURIComponent(encodeState(payload));
+            const base = location.href.split('#')[0];
+            return base + '#g=' + encoded;
+        }
+
+        function updateShareLink() {
+            const input = document.getElementById('shareLinkInput');
+            if (input && gameId && players.length) {
+                input.value = buildShareLink();
+            }
+        }
+
+        function copyShareLink() {
+            const input = document.getElementById('shareLinkInput');
+            if (!input || !input.value) return;
+            const done = () => alert('Link kopyalandı!');
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(input.value).then(done, () => {
+                    input.select(); document.execCommand('copy'); done();
+                });
+            } else {
+                input.select(); document.execCommand('copy'); done();
+            }
+        }
+
+        // Entry point when the page is opened via a shared link (#g=...)
+        function initPlayerView(encoded) {
+            let data;
+            try {
+                data = decodeState(decodeURIComponent(encoded));
+            } catch (e) {
+                alert('Link xətalıdır.');
+                return;
+            }
+            remoteData = data;
+            gameId = data.id;
+
+            // Hide every host screen, show the remote player view
+            document.querySelectorAll('.screen').forEach(s => {
+                s.classList.remove('visible');
+                s.style.display = 'none';
+            });
+            const pv = document.getElementById('playerView');
+            pv.classList.add('visible');
+            pv.style.display = 'block';
+
+            // Show the full list of possible locations
+            document.getElementById('allLocationsRemote').innerHTML =
+                locations.map(loc => `<li>${loc}</li>`).join('');
+
+            // If this device already claimed a name for this game, lock to it
+            const claimed = localStorage.getItem('spyfall_claim_' + gameId);
+            if (claimed && data.players.some(p => p.n === claimed)) {
+                showRemoteRole(claimed);
+            } else {
+                renderNameButtons();
+            }
+        }
+
+        function renderNameButtons() {
+            document.getElementById('playerSelect').style.display = 'block';
+            document.getElementById('playerRoleReveal').style.display = 'none';
+            const wrap = document.getElementById('playerNameButtons');
+            wrap.innerHTML = '';
+            remoteData.players.forEach(p => {
+                const btn = document.createElement('button');
+                btn.className = 'name-btn';
+                btn.textContent = p.n;
+                btn.onclick = () => askClaim(p.n);
+                wrap.appendChild(btn);
+            });
+        }
+
+        function askClaim(name) {
+            pendingClaimName = name;
+            document.getElementById('claimConfirmQuestion').textContent = `Sən "${name}"sən?`;
+            document.getElementById('claimConfirmOverlay').style.display = 'flex';
+        }
+
+        function confirmClaim(yes) {
+            document.getElementById('claimConfirmOverlay').style.display = 'none';
+            if (yes && pendingClaimName) {
+                // Lock this name to this device for this game
+                localStorage.setItem('spyfall_claim_' + gameId, pendingClaimName);
+                showRemoteRole(pendingClaimName);
+            }
+            pendingClaimName = null;
+        }
+
+        function showRemoteRole(name) {
+            const p = remoteData.players.find(x => x.n === name);
+            if (!p) { renderNameButtons(); return; }
+
+            document.getElementById('playerSelect').style.display = 'none';
+            document.getElementById('playerRoleReveal').style.display = 'block';
+
+            const color = p.r === 'Cəsus' ? 'red' :
+                          p.r === 'Joker' ? 'orange' :
+                          p.r === 'Xəfiyyə' ? 'cyan' : 'green';
+
+            const content = `
+                <p class="locked-note">Sən: <strong>${p.n}</strong></p>
+                Rol: <strong><span style="color:${color}">${p.r}</span></strong><br>
+                ${p.kl ? `Məkan: <strong>${remoteData.loc}</strong><br>` : ''}
+                ${p.ks ? `Casuslar: <strong><span style="color:red">${remoteData.spies.join(', ')}</span></strong>` : ''}
+            `;
+            document.getElementById('remoteRoleContent').innerHTML = content;
+        }
+
         // Helper functions
         function shuffleArray(arr) {
             for (let i = arr.length - 1; i > 0; i--) {
@@ -785,6 +1059,13 @@
         
         // Load game state on page load
         window.addEventListener('load', function() {
+            // If opened via a shared link, go straight to the remote player view
+            const hash = location.hash || '';
+            if (hash.indexOf('#g=') === 0) {
+                initPlayerView(hash.slice('#g='.length));
+                return;
+            }
+
             refreshGroupList();
             if (!loadGameState()) {
                 addPlayer();
