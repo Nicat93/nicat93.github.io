@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spyfall</title>
     <style>
         :root {
@@ -40,6 +41,10 @@
             border-radius: 5px;
             transition: all 0.3s ease;
             text-transform: uppercase;
+            max-width: 100%;
+            box-sizing: border-box;
+            white-space: normal;
+            overflow-wrap: anywhere;
         }
 
         button:hover {
@@ -134,8 +139,11 @@
             padding: 30px;
             border-radius: 10px;
             border: 2px solid var(--primary-color);
+            width: 90%;
             max-width: 500px;
+            box-sizing: border-box;
             text-align: left;
+            overflow-wrap: anywhere;
         }
 
         .glow-text {
@@ -178,6 +186,10 @@
             border-radius: 10px;
             border: 2px solid var(--primary-color);
             text-align: center;
+            width: 90%;
+            max-width: 460px;
+            box-sizing: border-box;
+            overflow-wrap: anywhere;
             animation: modalSlide 0.3s ease-out;
         }
     
@@ -231,14 +243,21 @@
         }
 
         #allLocations {
-            columns: 3;
+            columns: 2;
+            column-gap: 10px;
             padding: 0;
             list-style: none;
         }
 
         #allLocations li {
-            padding: 3px 0;
+            padding: 4px 6px;
             border: 1px solid var(--primary-color);
+            border-radius: 4px;
+            margin-bottom: 4px;
+            break-inside: avoid;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            font-size: 0.85em;
         }
 
         #allLocations li.current {
@@ -278,6 +297,8 @@
             width: 280px;
             max-width: 90%;
             margin: 8px auto;
+            white-space: normal;
+            overflow-wrap: anywhere;
         }
 
         #remoteRoleContent {
@@ -285,9 +306,12 @@
             padding: 25px;
             border-radius: 10px;
             border: 2px solid var(--primary-color);
+            width: 90%;
             max-width: 420px;
+            box-sizing: border-box;
             margin: 20px auto;
             text-align: left;
+            overflow-wrap: anywhere;
         }
 
         .locked-note {
@@ -311,14 +335,41 @@
         }
 
         #allLocationsRemote {
-            columns: 3;
+            columns: 2;
+            column-gap: 10px;
             padding: 0;
             list-style: none;
         }
 
         #allLocationsRemote li {
-            padding: 3px 0;
+            padding: 4px 6px;
             border: 1px solid var(--primary-color);
+            border-radius: 4px;
+            margin-bottom: 4px;
+            break-inside: avoid;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            font-size: 0.85em;
+        }
+
+        /* Single column on narrow phones so long location names stay readable */
+        @media (max-width: 480px) {
+            #allLocations,
+            #allLocationsRemote { columns: 1; }
+            body { padding: 12px; }
+        }
+
+        /* Version tag, kept subtle */
+        #versionTag {
+            position: fixed;
+            bottom: 6px;
+            right: 8px;
+            font-size: 0.7em;
+            color: var(--primary-color);
+            opacity: 0.4;
+            z-index: 2000;
+            pointer-events: none;
+            user-select: none;
         }
     </style>
 </head>
@@ -443,6 +494,9 @@
         <div id="overlayContent"></div>
         <button onclick="hideOverlay()">Geri</button>
     </div>
+
+    <!-- App version (bump the number on each update) -->
+    <div id="versionTag">V1.1</div>
 
     <script>
         const locations = [
